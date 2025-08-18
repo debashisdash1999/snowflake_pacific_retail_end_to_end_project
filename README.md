@@ -1,5 +1,5 @@
 # PacificRetail: End-to-End Snowflake Data Engineering Project
-Follow the sql files chronologically to know about the project workflow
+Follow the sql files chronologically along with this readme to know about the project workflow.
 
 ## Project Overview
 **PacificRetail** is an ecommerce company operating across **15 countries (North America & Europe)**, with:
