@@ -100,7 +100,7 @@ Source Systems → ADLS → Bronze Layer → Silver Layer → Gold Layer → BI 
 ## Gold Layer Views
 
 ### 1. Daily Sales Analysis
-```sql
+```snowflake
 CREATE OR REPLACE VIEW VW_DAILY_SALES_ANALYSIS AS
 SELECT 
     o.transaction_date,
@@ -121,7 +121,7 @@ GROUP BY
     o.transaction_date, p.product_id, p.name, p.category, c.customer_id, c.customer_type;
    ``` 
 ### 2. Customer Product Affinity
-```sql
+```snowflake
 CREATE OR REPLACE VIEW VW_CUSTOMER_PRODUCT_AFFINITY AS
 SELECT 
     c.customer_id,
