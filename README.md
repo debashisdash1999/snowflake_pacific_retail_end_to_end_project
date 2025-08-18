@@ -1,5 +1,5 @@
 # PacificRetail: End-to-End Snowflake Data Engineering Project
-Follow the sql files chronologically along with this readme to know about the project workflow.
+Follow the code files chronologically along with this readme to know about the project workflow.
 
 ## Project Overview
 **PacificRetail** is an ecommerce company operating across **15 countries (North America & Europe)**, with:
@@ -179,13 +179,13 @@ GROUP BY
 
 ## Reporting & Analytics
 
-Final outputs from the **Gold Layer** are consumed by BI tools such as:  
+Final outputs from the **Gold Layer** can be consumed by BI tools such as:  
 
 - Power BI  
 - Tableau  
 - Looker  
 
-### Actionable Dashboards Provide Insights Into:
+### Actionable Dashboards Can Provide Insights Into:
 - **Sales performance tracking**  
 - **Customer segmentation & behavior analysis**  
 - **Product performance & inventory insights**  
