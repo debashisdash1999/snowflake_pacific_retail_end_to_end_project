@@ -1,106 +1,74 @@
 # PacificRetail: End-to-End Snowflake Data Engineering Project
-Follow the code files chronologically along with this readme to know about the project workflow.
 
 ## Project Overview
-**PacificRetail** is an ecommerce company operating across **15 countries (North America & Europe)**, with:
-- **5M+ active customers**
-- **100,000+ products** in catalog
 
-### Challenges
-- **Data silos**: Customer, product, and transaction data stored in separate systems → no holistic view  
-- **Processing delays**: Batch processing causes **24-hour delay** in sales & analytics reporting  
-- **Scalability issues**: On-premises warehouse struggles during peak sales  
-- **Data quality inconsistencies**  
-- **Limited analytics capabilities**
+PacificRetail is a large-scale e-commerce company operating across **15 countries in North America and Europe**, with over **5 million active customers** and **100,000+ products** in its catalog.
 
-### Goals
-Implement a **modern data engineering solution using Snowflake** to:
-- Centralize all data  
-- Enable **real-time analytics**  
-- Improve scalability  
-- Enhance data quality  
-- Support **advanced analytics & ML models**
+### The Problem
+
+The business was running into a set of interconnected data challenges:
+
+- **Data silos** — Customer, product, and transaction data lived in separate systems with no unified view across them
+- **Reporting lag** — Batch processing introduced a 24-hour delay in sales and analytics reporting
+- **Scalability bottlenecks** — The on-premises warehouse struggled to keep up during peak sales periods
+- **Data quality issues** — Inconsistencies across sources made it difficult to trust the data
+- **Limited analytics** — The existing setup couldn't support the advanced analytics and ML use cases the business needed
+
+### The Goal
+
+Build a modern, cloud-native data engineering solution on Snowflake that:
+
+- Centralizes data from all sources into a single platform
+- Brings reporting latency down from 24 hours to under 1 hour
+- Scales to handle 5x the current data volume
+- Improves data quality and consistency end-to-end
+- Enables self-service analytics and lays the groundwork for ML models
 
 ---
 
 ## Data Sources
-- **Customer Data** → Daily CSV files (~100K records/day)  
-- **Product Catalog** → Hourly JSON files (~10K changes/day)  
-- **Transaction Logs** → Real-time Parquet files (~500K transactions/day)
 
----
-
-## Expected Outcomes
-- Reduce data processing time: **24 hours → < 1 hour**  
-- Achieve **99.9% accuracy** in cross-channel reporting  
-- Scale to handle **5x current data volume**  
-- Enable **self-service analytics**  
-- Provide foundation for **ML models**
+| Source | Format | Volume |
+|---|---|---|
+| Customer Data (CRM) | CSV (daily) | ~100K records/day |
+| Product Catalog (Inventory) | JSON (hourly) | ~10K changes/day |
+| Transaction Logs (E-commerce) | Parquet (real-time) | ~500K transactions/day |
 
 ---
 
 ## Architecture Overview
-**Layers:**
-- **Bronze Layer** → Raw data ingestion  
-- **Silver Layer** → Cleaned & conformed data  
-- **Gold Layer** → Business-level aggregates & data marts  
 
-### High-Level Architecture
-1. **Data Sources**  
-   - CRM → Customer data  
-   - Inventory system → Product catalog  
-   - E-commerce platform → Transaction data  
+The pipeline follows a **three-layer Medallion Architecture**: Bronze (raw ingestion) → Silver (cleansed and conformed) → Gold (business-level aggregates).
 
-2. **Azure Data Lake Storage (ADLS)**  
-   - Centralized data lake  
-   - Stores raw files in multiple formats (CSV, JSON, Parquet)  
-   - Acts as staging area for Snowflake  
+```
+Source Systems → Azure Data Lake Storage (ADLS) → Bronze → Silver → Gold → BI Tools
+```
 
-3. **Snowflake Data Warehouse**  
-   - Connects to ADLS via **External Stages**  
-   - Ingests using **COPY command**  
-   - Organizes data into **Bronze → Silver → Gold schemas**  
-   - Provides compute resources for analytics  
+### Layer Breakdown
 
-4. **Data Processing Layers**
-   - **Bronze Layer**: Raw ingestion, no transformations, preserves original structure  
-   - **Silver Layer**:  
-     - Cleansed & standardized data  
-     - Implements **CDC (Change Data Capture) with MERGE**  
-     - Data quality checks (validations, standardization)  
-   - **Gold Layer**:  
-     - Business-specific **aggregates**  
-     - Denormalized & query-friendly structure  
-     - Optimized for BI tools  
+**Bronze — Raw Ingestion**
+Data lands here exactly as received from source systems. No transformations, no schema changes. The goal is to preserve the original structure for traceability and reprocessing.
 
----
+**Silver — Cleansed and Conformed**
+This is where the heavy lifting happens. Data goes through validation, standardization, and CDC (Change Data Capture) using Snowflake MERGE statements. Key checks include:
 
-## Data Flow
-Source Systems → ADLS → Bronze Layer → Silver Layer → Gold Layer → BI Tools
+- **Customer**: Email not null, age between 18-120, customer type normalized to `regular` / `premium` / `unknown`, gender standardized, purchase counts defaulted to 0 if invalid
+- **Product**: Price must be positive, stock non-negative, rating between 0 and 5
 
+Business logic and validation are handled via **Stored Procedures and Tasks**, keeping transformation logic modular and auditable.
 
-### Transformations & Validations
-**Customer Table**
-- Email validation (not null)  
-- Customer type normalization (`regular`, `premium`, `unknown`)  
-- Age check (18–120)  
-- Gender standardization (`male`, `female`, `other`)  
-- Total purchases validation (numeric, default 0 if invalid)  
-
-**Product Table**
-- Price validation (positive number)  
-- Stock validation (non-negative)  
-- Rating validation (0–5)  
-
-**Implementation:**  
-- Stored Procedures + Tasks for automated validation and transformations  
+**Gold — Business Aggregates**
+Denormalized, query-optimized views designed for BI consumption. Built for speed and self-service analytics.
 
 ---
 
 ## Gold Layer Views
 
-### 1. Daily Sales Analysis
-```snowflake
+### Daily Sales Analysis
+
+Aggregates sales by day, product, and customer type — supports revenue tracking, pricing analysis, and transaction volume reporting.
+
+```sql
 CREATE OR REPLACE VIEW VW_DAILY_SALES_ANALYSIS AS
 SELECT 
     o.transaction_date,
@@ -119,9 +87,13 @@ JOIN SILVER.PRODUCT p ON o.product_id = p.product_id
 JOIN SILVER.CUSTOMER c ON o.customer_id = c.customer_id
 GROUP BY 
     o.transaction_date, p.product_id, p.name, p.category, c.customer_id, c.customer_type;
-   ``` 
-### 2. Customer Product Affinity
-```snowflake
+```
+
+### Customer Product Affinity
+
+Tracks purchasing behavior at the customer-product level over time — useful for segmentation, recommendation models, and churn analysis.
+
+```sql
 CREATE OR REPLACE VIEW VW_CUSTOMER_PRODUCT_AFFINITY AS
 SELECT 
     c.customer_id,
@@ -140,52 +112,50 @@ JOIN SILVER.ORDERS o ON c.customer_id = o.customer_id
 JOIN SILVER.PRODUCT p ON o.product_id = p.product_id
 GROUP BY 
     c.customer_id, c.customer_type, p.product_id, p.name, p.category, DATE_TRUNC('MONTH', o.transaction_date);
-``` 
+```
+
 ---
 
 ## Key Snowflake Features Used
 
-- **External Stages** – Integrating ADLS  
-- **COPY Command** – Bulk loading  
-- **Streams** – CDC implementation  
-- **Tasks** – Scheduled automation  
-- **Stored Procedures** – Business logic & validation  
-- **Time Travel** – Querying historical data  
-- **Zero-Copy Cloning** – Testing & dev without data duplication  
-
----
-
-## Benefits of this Architecture
-
-- **Scalability**: Handles current + 5x projected data growth  
-- **Flexibility**: Works across diverse data formats & sources  
-- **Performance**: Reduced processing time from 24 hours to < 1 hour  
-- **Cost Efficiency**: Separation of compute and storage  
-- **Data Governance**: Improved quality, consistency, and auditing  
+| Feature | Purpose |
+|---|---|
+| External Stages | Connect Snowflake to ADLS for file ingestion |
+| COPY Command | Bulk load raw files into Bronze tables |
+| Streams | Track incremental changes for CDC |
+| Tasks | Schedule and automate pipeline execution |
+| Stored Procedures | Encapsulate transformation and validation logic |
+| Time Travel | Recover deleted or modified data; review historical state |
+| Zero-Copy Cloning | Create dev/test environments without duplicating storage |
 
 ---
 
 ## Key Components
 
-- **Snowflake Database**  
-- **External Stage (ADLS integration)**  
-- **Schemas**: Bronze, Silver, Gold  
-- **Tables**  
-- **Tasks**  
-- **Streams**  
-- **Views**  
+- Snowflake Database with Bronze, Silver, and Gold schemas
+- External Stage connected to Azure Data Lake Storage
+- Automated ELT pipeline using Tasks, Streams, and Stored Procedures
+- Gold layer views ready for BI consumption
 
 ---
 
-## Reporting & Analytics
+## Reporting and Analytics
 
-Final outputs from the **Gold Layer** can be consumed by BI tools such as:  
+Gold layer views connect directly to BI tools including **Power BI**, **Tableau**, and **Looker**.
 
-- Power BI  
-- Tableau  
-- Looker  
+Dashboards built on this architecture can support:
 
-### Actionable Dashboards Can Provide Insights Into:
-- **Sales performance tracking**  
-- **Customer segmentation & behavior analysis**  
-- **Product performance & inventory insights**  
+- Sales performance tracking by product, region, and customer segment
+- Customer behavior analysis and segmentation
+- Product performance and inventory insights
+
+---
+
+## Outcomes
+
+| Metric | Before | After |
+|---|---|---|
+| Data processing time | 24 hours | < 1 hour |
+| Reporting accuracy | Inconsistent | 99.9% target across channels |
+| Data volume capacity | Current load | Designed for 5x growth |
+| Analytics access | Engineering-dependent | Self-service ready |
